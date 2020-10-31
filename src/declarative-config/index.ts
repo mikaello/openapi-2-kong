@@ -1,10 +1,11 @@
-// @flow
+import { OpenAPIV3 } from 'openapi-types';
+import { DeclarativeConfigResult } from '../types/output';
 import { generateServices } from './services';
 import { generateUpstreams } from './upstreams';
 
 export function generateDeclarativeConfigFromSpec(
-  api: OpenApi3Spec,
-  tags: Array<string>,
+  api: OpenAPIV3.Document,
+  tags: Array<string>
 ): DeclarativeConfigResult {
   let document = null;
   try {
@@ -26,6 +27,6 @@ export function generateDeclarativeConfigFromSpec(
       label: 'Kong Declarative Config',
       documents: [document],
       warnings: [],
-    }),
+    })
   );
 }

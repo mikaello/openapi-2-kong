@@ -1,4 +1,4 @@
-// @flow
+import { OpenAPIV3 } from 'openapi-types';
 import {
   fillServerVariables,
   generateSlug,
@@ -16,7 +16,7 @@ import {
 import { parseSpec } from '../index';
 
 describe('common', () => {
-  const spec: OpenApi3Spec = {
+  const spec: OpenAPIV3.Document = {
     openapi: '3.0.0',
     info: {
       version: '1.0.0',
@@ -75,7 +75,7 @@ describe('common', () => {
 
   describe('getSecurity()', () => {
     it('returns security from operation', () => {
-      const operation: OA3Operation = {
+      const operation: OpenAPIV3.OperationObject = {
         security: [{ petstoreAuth: [] }],
         responses: {},
       };
@@ -85,7 +85,7 @@ describe('common', () => {
     });
 
     it('returns security from api', () => {
-      const spec: OpenApi3Spec = {
+      const spec: OpenAPIV3.Document = {
         openapi: '3.0.0',
         info: {
           version: '1.0.0',
@@ -103,8 +103,16 @@ describe('common', () => {
         security: [{ anotherAuth: [] }],
         components: {
           securitySchemes: {
-            petstoreAuth: { type: 'http', scheme: 'basic', name: 'name' },
-            anotherAuth: { type: 'http', scheme: 'basic', name: 'another-name' },
+            petstoreAuth: {
+              type: 'http',
+              scheme: 'basic',
+              description: 'description',
+            },
+            anotherAuth: {
+              type: 'http',
+              scheme: 'basic',
+              description: 'another-description',
+            },
           },
         },
       };
@@ -171,23 +179,32 @@ describe('common', () => {
         url: 'https://{subdomain}.swagger.io/v1',
         variables: { subdomain: { default: 'petstore' } },
       };
-      expect(fillServerVariables(server)).toBe('https://petstore.swagger.io/v1');
+      expect(fillServerVariables(server)).toBe(
+        'https://petstore.swagger.io/v1'
+      );
     });
 
     it('fails with no default value', () => {
-      const server: Object = {
+      const server: OpenAPIV3.ServerObject = {
         url: 'https://{subdomain}.swagger.io/v1',
-        variables: { subdomain: { enum: ['petstore'] } },
+        variables: {
+          // @ts-ignore default missing on purpose
+          subdomain: { enum: ['petstore'] },
+        },
       };
 
       const fn = () => fillServerVariables(server);
-      expect(fn).toThrowError('Server variable "subdomain" missing default value');
+      expect(fn).toThrowError(
+        'Server variable "subdomain" missing default value'
+      );
     });
   });
 
   describe('pathVariablesToRegex()', () => {
     it('converts variables to regex path', () => {
-      expect(pathVariablesToRegex('/foo/{bar}/{baz}')).toBe('/foo/(?<bar>\\S+)/(?<baz>\\S+)$');
+      expect(pathVariablesToRegex('/foo/{bar}/{baz}')).toBe(
+        '/foo/(?<bar>\\S+)/(?<baz>\\S+)$'
+      );
     });
 
     it('does not convert to regex if no variables present', () => {
@@ -210,7 +227,16 @@ describe('common', () => {
     });
   });
 
-  const methods = ['get', 'put', 'post', 'options', 'delete', 'head', 'patch', 'trace'];
+  const methods = [
+    'get',
+    'put',
+    'post',
+    'options',
+    'delete',
+    'head',
+    'patch',
+    'trace',
+  ];
   describe('isHttpMethodKey()', () => {
     it.each(methods)('should be true for %o', method => {
       expect(isHttpMethodKey(method)).toBe(true);
@@ -222,7 +248,9 @@ describe('common', () => {
 
   describe('getMethodAnnotationName', () => {
     it.each(methods)('should suffix with -method and lowercase: %o', method => {
-      expect(getMethodAnnotationName(method)).toBe(`${method}-method`.toLowerCase());
+      expect(getMethodAnnotationName(method)).toBe(
+        `${method}-method`.toLowerCase()
+      );
     });
   });
 

@@ -1,5 +1,9 @@
-// @flow
+import { OpenAPIV3 } from 'openapi-types';
 import { parseSpec } from '../../index';
+import {
+  OA3DocumentKubernetesInfo,
+  OA3ServerKubernetesProperties,
+} from '../../types/kubernetes-config';
 import {
   generateKongForKubernetesConfigFromSpec,
   generateMetadataAnnotations,
@@ -35,23 +39,27 @@ describe('index', () => {
 
   describe('getSpecName()', () => {
     it('with info.title', async () => {
-      const api: OpenApi3Spec = await parseSpec({ ...spec });
+      const api: OpenAPIV3.Document = await parseSpec({ ...spec });
       expect(getSpecName(api)).toBe('my-api');
     });
 
     it('no name', async () => {
-      const api: OpenApi3Spec = await parseSpec({ ...spec, info: undefined });
+      const api: OpenAPIV3.Document = await parseSpec({
+        ...spec,
+        info: undefined,
+      });
       expect(getSpecName(api)).toBe('openapi');
     });
 
     it('with x-kong-name', () => {
-      const api: OpenApi3Spec = { ...spec, 'x-kong-name': 'kong-name' };
+      // @ts-ignore
+      const api: OpenAPIV3.Document = { ...spec, 'x-kong-name': 'kong-name' };
 
       expect(getSpecName(api)).toBe('kong-name');
     });
 
     it('with x-kubernetes-ingress-metadata.name', async () => {
-      const api: OpenApi3Spec = await parseSpec({
+      const api: OpenAPIV3.Document = await parseSpec({
         ...spec,
         'x-kong-name': 'Kong Name',
         info: {
@@ -66,7 +74,7 @@ describe('index', () => {
 
   describe('generateMetadataAnnotations()', () => {
     it('gets annotations from x-kubernetes-ingress-metadata', async () => {
-      const api: OpenApi3Spec = await parseSpec({
+      const api: OpenAPIV3.Document = await parseSpec({
         ...spec,
         info: {
           'x-kubernetes-ingress-metadata': {
@@ -92,7 +100,9 @@ describe('index', () => {
     });
 
     it('gets plugin annotations correctly', () => {
-      const result = generateMetadataAnnotations(spec, { pluginNames: ['one', 'two'] });
+      const result = generateMetadataAnnotations(spec, {
+        pluginNames: ['one', 'two'],
+      });
       expect(result).toEqual({
         'kubernetes.io/ingress.class': 'kong',
         'konghq.com/plugins': 'one, two',
@@ -100,7 +110,10 @@ describe('index', () => {
     });
 
     it('gets override annotation correctly', () => {
-      const result = generateMetadataAnnotations(spec, { pluginNames: [], overrideName: 'name' });
+      const result = generateMetadataAnnotations(spec, {
+        pluginNames: [],
+        overrideName: 'name',
+      });
       expect(result).toEqual({
         'kubernetes.io/ingress.class': 'kong',
         'konghq.com/override': 'name',
@@ -112,7 +125,7 @@ describe('index', () => {
         'nginx.ingress.kubernetes.io/rewrite-target': '/',
       };
 
-      const api: OpenApi3Spec = {
+      const api: OA3DocumentKubernetesInfo = {
         ...spec,
         info: {
           ...spec.info,
@@ -134,21 +147,23 @@ describe('index', () => {
       });
 
       // Should not modify source metadata annotations object
-      expect(api.info['x-kubernetes-ingress-metadata']?.annotations).toStrictEqual(
-        originalAnnotations,
-      );
+      expect(
+        api.info['x-kubernetes-ingress-metadata']?.annotations
+      ).toStrictEqual(originalAnnotations);
     });
   });
 
   describe('generateServiceName()', () => {
     it('defaults to ingress name', () => {
-      const server: OA3Server = { url: 'https://insomnia.rest' };
+      const server: OA3ServerKubernetesProperties = {
+        url: 'https://insomnia.rest',
+      };
       expect(generateServiceName(server, 'my-api', 0)).toBe('my-api-service-0');
       expect(generateServiceName(server, 'my-api', 3)).toBe('my-api-service-3');
     });
 
     it('uses x-kubernetes-backend.serviceName', () => {
-      const server: OA3Server = {
+      const server: OA3ServerKubernetesProperties = {
         url: 'https://insomnia.rest',
         'x-kubernetes-backend': {
           serviceName: 'b-name',
@@ -188,7 +203,7 @@ describe('index', () => {
     });
 
     it('uses 443 if any port is 443 when tls configured ', () => {
-      const server: OA3Server = {
+      const server: OA3ServerKubernetesProperties = {
         url: 'https://api.insomnia.rest',
         'x-kubernetes-tls': { secretName: 'tls-secret' },
         'x-kubernetes-service': {
@@ -201,7 +216,7 @@ describe('index', () => {
     });
 
     it('uses x-kubernetes-backend.servicePort', () => {
-      const server: OA3Server = {
+      const server: OA3ServerKubernetesProperties = {
         url: 'https://api.insomnia.rest',
         'x-kubernetes-backend': {
           serviceName: 'b-name',
@@ -234,12 +249,15 @@ describe('index', () => {
       'returns undefined if base path is [%o] and no specific path exists',
       serverBasePath => {
         expect(generateServicePath(serverBasePath)).toBe(undefined);
-      },
+      }
     );
 
-    it.each(['/api/v1', '/api/v1/'])('adds closing wildcard if base path is [%o]', basePath => {
-      expect(generateServicePath(basePath)).toBe('/api/v1/.*');
-    });
+    it.each(['/api/v1', '/api/v1/'])(
+      'adds closing wildcard if base path is [%o]',
+      basePath => {
+        expect(generateServicePath(basePath)).toBe('/api/v1/.*');
+      }
+    );
 
     it('adds closing wildcard if basePath ends with wildcard and no specific path exists', () => {
       const serverBasePath = '/api/.*';
@@ -252,19 +270,26 @@ describe('index', () => {
         const serverBasePath = '/';
         const result = generateServicePath(serverBasePath, specificPath);
         expect(result).toBe(specificPath);
-      },
+      }
     );
 
     it('converts path variables to .* wildcards', () => {
       const serverBasePath = '/api/v1';
-      const result = generateServicePath(serverBasePath, '/{var}/{another-var}/path');
+      const result = generateServicePath(
+        serverBasePath,
+        '/{var}/{another-var}/path'
+      );
       expect(result).toBe('/api/v1/.*/.*/path');
     });
   });
 
   describe('generateRulesForServer()', () => {
     it('handles basic server at root', () => {
-      const result = generateRulesForServer(0, { url: 'http://api.insomnia.rest' }, 'my-ingress');
+      const result = generateRulesForServer(
+        0,
+        { url: 'http://api.insomnia.rest' },
+        'my-ingress'
+      );
 
       expect(result).toStrictEqual({
         host: 'api.insomnia.rest',
@@ -285,7 +310,7 @@ describe('index', () => {
       const result = generateRulesForServer(
         0,
         { url: 'http://api.insomnia.rest/v1' },
-        'my-ingress',
+        'my-ingress'
       );
 
       expect(result).toEqual({
@@ -309,7 +334,7 @@ describe('index', () => {
         1,
         { url: 'http://api.insomnia.rest/v1' },
         'my-ingress',
-        ['/{parameter}/{another}/path'],
+        ['/{parameter}/{another}/path']
       );
 
       expect(result).toEqual({
@@ -333,7 +358,7 @@ describe('index', () => {
         1,
         { url: 'http://api.insomnia.rest/v1' },
         'my-ingress',
-        [],
+        []
       );
 
       expect(result).toEqual({
@@ -361,7 +386,7 @@ describe('index', () => {
             secretName: 'my-secret',
           },
         },
-        'my-ingress',
+        'my-ingress'
       );
 
       expect(result).toEqual({
@@ -429,7 +454,7 @@ describe('index', () => {
     });
 
     it('handles server url with path variables', () => {
-      const server: OA3Server = {
+      const server: OA3ServerKubernetesProperties = {
         url: '{protocol}://api.insomnia.rest/{route}/{version}',
         variables: {
           version: {
@@ -460,7 +485,7 @@ describe('index', () => {
 
   describe('generateKongForKubernetesConfigFromSpec()', () => {
     it('handles global plugins', async () => {
-      const api: OpenApi3Spec = await parseSpec({
+      const api: OpenAPIV3.Document = await parseSpec({
         ...spec,
         ...pluginKeyAuth,
         ...pluginDummy,
@@ -475,13 +500,13 @@ describe('index', () => {
           0,
           [keyAuthName('g0'), dummyName('g1')],
           'api.insomnia.rest',
-          'my-api-service-0',
+          'my-api-service-0'
         ),
       ]);
     });
 
     it('handles global and server plugins', async () => {
-      const api: OpenApi3Spec = await parseSpec({
+      const api: OpenAPIV3.Document = await parseSpec({
         ...spec,
         ...pluginKeyAuth,
         servers: [
@@ -507,19 +532,29 @@ describe('index', () => {
         keyAuthPluginDoc('s1'),
         keyAuthPluginDoc('s2'),
         dummyPluginDoc('s3'),
-        ingressDoc(0, [keyAuthName('g0')], 'api-0.insomnia.rest', 'my-api-service-0'),
-        ingressDoc(1, [keyAuthName('s1')], 'api-1.insomnia.rest', 'my-api-service-1'),
+        ingressDoc(
+          0,
+          [keyAuthName('g0')],
+          'api-0.insomnia.rest',
+          'my-api-service-0'
+        ),
+        ingressDoc(
+          1,
+          [keyAuthName('s1')],
+          'api-1.insomnia.rest',
+          'my-api-service-1'
+        ),
         ingressDoc(
           2,
           [keyAuthName('s2'), dummyName('s3')],
           'api-2.insomnia.rest',
-          'my-api-service-2',
+          'my-api-service-2'
         ),
       ]);
     });
 
     it('handles global and path plugins', async () => {
-      const api: OpenApi3Spec = await parseSpec({
+      const api: OpenAPIV3.Document = await parseSpec({
         ...spec,
         ...pluginKeyAuth,
         paths: {
@@ -541,20 +576,32 @@ describe('index', () => {
         keyAuthPluginDoc('p1'),
         keyAuthPluginDoc('p2'),
         dummyPluginDoc('p3'),
-        ingressDoc(0, [keyAuthName('g0')], 'api.insomnia.rest', 'my-api-service-0', '/no-plugin'),
-        ingressDoc(1, [keyAuthName('p1')], 'api.insomnia.rest', 'my-api-service-0', '/plugin-0'),
+        ingressDoc(
+          0,
+          [keyAuthName('g0')],
+          'api.insomnia.rest',
+          'my-api-service-0',
+          '/no-plugin'
+        ),
+        ingressDoc(
+          1,
+          [keyAuthName('p1')],
+          'api.insomnia.rest',
+          'my-api-service-0',
+          '/plugin-0'
+        ),
         ingressDoc(
           2,
           [keyAuthName('p2'), dummyName('p3')],
           'api.insomnia.rest',
           'my-api-service-0',
-          '/plugin-1',
+          '/plugin-1'
         ),
       ]);
     });
 
     it('handles global and method plugins', async () => {
-      const api: OpenApi3Spec = await parseSpec({
+      const api: OpenAPIV3.Document = await parseSpec({
         ...spec,
         ...pluginKeyAuth,
         paths: {
@@ -587,7 +634,7 @@ describe('index', () => {
           'get-method',
           'api.insomnia.rest',
           'my-api-service-0',
-          '/path',
+          '/path'
         ),
         ingressDocWithOverride(
           1,
@@ -595,7 +642,7 @@ describe('index', () => {
           'put-method',
           'api.insomnia.rest',
           'my-api-service-0',
-          '/path',
+          '/path'
         ),
         ingressDocWithOverride(
           2,
@@ -603,7 +650,7 @@ describe('index', () => {
           'post-method',
           'api.insomnia.rest',
           'my-api-service-0',
-          '/path',
+          '/path'
         ),
       ]);
     });

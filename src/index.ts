@@ -1,14 +1,17 @@
-// @flow
 import fs from 'fs';
 import path from 'path';
 import { generateDeclarativeConfigFromSpec } from './declarative-config';
 import { generateKongForKubernetesConfigFromSpec } from './kubernetes';
-import SwaggerParser from 'swagger-parser';
+import SwaggerParser from '@apidevtools/swagger-parser';
+import YAML from 'yaml';
+
+import { OpenAPIV3 } from 'openapi-types';
+import { ConversionResult, ConversionResultType } from './types/output';
 
 export async function generate(
   specPath: string,
   type: ConversionResultType,
-  tags: Array<string> = [],
+  tags: Array<string> = []
 ): Promise<ConversionResult> {
   return new Promise((resolve, reject) => {
     fs.readFile(path.resolve(specPath), 'utf8', (err, contents) => {
@@ -27,16 +30,16 @@ export async function generate(
 export async function generateFromString(
   specStr: string,
   type: ConversionResultType,
-  tags: Array<string> = [],
+  tags: Array<string> = []
 ): Promise<ConversionResult> {
-  const api: OpenApi3Spec = await parseSpec(specStr);
+  const api: OpenAPIV3.Document = await parseSpec(specStr);
   return generateFromSpec(api, type, ['OAS3_import', ...tags]);
 }
 
 export function generateFromSpec(
-  api: OpenApi3Spec,
+  api: OpenAPIV3.Document,
   type: ConversionResultType,
-  tags: Array<string> = [],
+  tags: Array<string> = []
 ): ConversionResult {
   switch (type) {
     case 'kong-declarative-config':
@@ -48,14 +51,16 @@ export function generateFromSpec(
   }
 }
 
-export async function parseSpec(spec: string | Object): Promise<OpenApi3Spec> {
-  let api: OpenApi3Spec;
+export async function parseSpec(
+  spec: string | Object
+): Promise<OpenAPIV3.Document> {
+  let api: OpenAPIV3.Document;
 
   if (typeof spec === 'string') {
     try {
       api = JSON.parse(spec);
     } catch (err) {
-      api = SwaggerParser.YAML.parse(spec);
+      api = YAML.parse(spec);
     }
   } else {
     api = JSON.parse(JSON.stringify(spec));
@@ -65,12 +70,13 @@ export async function parseSpec(spec: string | Object): Promise<OpenApi3Spec> {
   // a bit less strict
 
   if (!api.info) {
-    api.info = {};
+    api.info = { title: '', version: '' };
   }
 
   if (api.openapi === '3.0') {
     api.openapi = '3.0.0';
   }
 
+  // @ts-ignore
   return SwaggerParser.dereference(api);
 }

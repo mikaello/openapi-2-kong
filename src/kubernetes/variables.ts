@@ -1,11 +1,30 @@
 // @flow
 
+import { OpenAPIV3 } from 'openapi-types';
+
 const protocolSearchValue = /{([^}]+)}(?=:\/\/)/g; // positive lookahead for ://
 const pathSearchValue = /{([^}]+)}(?!:\/\/)/g; // negative lookahead for ://
 
-export function resolveUrlVariables(url: string, variables?: OA3Variables): string {
-  const protocolResolved = resolveVariables(url, protocolSearchValue, 'http', variables);
-  const pathResolved = resolveVariables(protocolResolved, pathSearchValue, '.*', variables);
+export type OA3Variables = {
+  [variable: string]: OpenAPIV3.ServerVariableObject;
+};
+
+export function resolveUrlVariables(
+  url: string,
+  variables?: OA3Variables
+): string {
+  const protocolResolved = resolveVariables(
+    url,
+    protocolSearchValue,
+    'http',
+    variables
+  );
+  const pathResolved = resolveVariables(
+    protocolResolved,
+    pathSearchValue,
+    '.*',
+    variables
+  );
 
   return pathResolved;
 }
@@ -14,7 +33,7 @@ export function resolveVariables(
   str: string,
   regExp: RegExp,
   fallback: string,
-  variables?: OA3Variables,
+  variables?: OA3Variables
 ): string {
   let resolved = str;
   let shouldContinue = true;

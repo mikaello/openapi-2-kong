@@ -1,4 +1,4 @@
-// @flow
+import { KubernetesPluginConfig } from '../../../types/kubernetes-config';
 
 export const pluginKeyAuth = {
   'x-kong-plugin-key-auth': {
@@ -17,7 +17,10 @@ export const pluginDummy = {
   },
 };
 
-export const pluginDocWithName = (name: string, pluginType: string) => ({
+export const pluginDocWithName = (
+  name: string,
+  pluginType: string
+): KubernetesPluginConfig => ({
   apiVersion: 'configuration.konghq.com/v1',
   kind: 'KongPlugin',
   metadata: {
@@ -25,7 +28,7 @@ export const pluginDocWithName = (name: string, pluginType: string) => ({
   },
   plugin: pluginType,
 });
-export const keyAuthPluginDoc = (suffix: string) => ({
+export const keyAuthPluginDoc = (suffix: string): KubernetesPluginConfig => ({
   apiVersion: 'configuration.konghq.com/v1',
   config: {
     hide_credentials: true,
@@ -38,7 +41,7 @@ export const keyAuthPluginDoc = (suffix: string) => ({
   },
   plugin: 'key-auth',
 });
-export const dummyPluginDoc = (suffix: string) => ({
+export const dummyPluginDoc = (suffix: string): KubernetesPluginConfig => ({
   apiVersion: 'configuration.konghq.com/v1',
   config: { foo: 'bar' },
   kind: 'KongPlugin',
@@ -66,7 +69,7 @@ export const ingressDoc = (
   plugins: Array<string>,
   host: string,
   serviceName: string,
-  path: ?string,
+  path?: string
 ) => {
   const backend = { serviceName, servicePort: 80 };
   const paths = path ? { path, backend } : { backend };
@@ -99,7 +102,7 @@ export const ingressDocWithOverride = (
   override: string,
   host: string,
   serviceName: string,
-  path: ?string,
+  path?: string
 ) => ({
   apiVersion: 'extensions/v1beta1',
   kind: 'Ingress',

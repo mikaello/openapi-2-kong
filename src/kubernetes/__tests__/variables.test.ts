@@ -1,6 +1,9 @@
-// @flow
-
-import { resolveUrlVariables, resolveVariables, pathVariablesToWildcard } from '../variables';
+import {
+  resolveUrlVariables,
+  resolveVariables,
+  pathVariablesToWildcard,
+  OA3Variables,
+} from '../variables';
 
 describe('variables', () => {
   describe('resolveVariables()', () => {
@@ -39,7 +42,12 @@ describe('variables', () => {
         var2: { default: 'old' },
       };
 
-      const result = resolveVariables('hello-{var1}-my-{var2}-friend', regExp, fallback, variables);
+      const result = resolveVariables(
+        'hello-{var1}-my-{var2}-friend',
+        regExp,
+        fallback,
+        variables
+      );
 
       expect(result).toBe('hello-darkness-my-old-friend');
     });
@@ -63,12 +71,16 @@ describe('variables', () => {
           default: 'https',
         },
       };
-      expect(resolveUrlVariables(url, variables)).toBe('https://api.insomnia.rest');
+      expect(resolveUrlVariables(url, variables)).toBe(
+        'https://api.insomnia.rest'
+      );
     });
 
     it('should replace path variable with .* wildcard path if no default provided', () => {
       const url = 'http://api.insomnia.rest/{some}/route';
-      expect(resolveUrlVariables(url)).toBe('http://api.insomnia.rest/.*/route');
+      expect(resolveUrlVariables(url)).toBe(
+        'http://api.insomnia.rest/.*/route'
+      );
     });
 
     it('should replace path variable with default value', () => {
@@ -78,11 +90,14 @@ describe('variables', () => {
           default: 'specific',
         },
       };
-      expect(resolveUrlVariables(url, variables)).toBe('http://api.insomnia.rest/specific/route');
+      expect(resolveUrlVariables(url, variables)).toBe(
+        'http://api.insomnia.rest/specific/route'
+      );
     });
 
     it('should handle protocol and path variables with and without defaults', () => {
-      const url = '{protocol}://api.insomnia.rest/hello/{var}/my/{another-var}/friend/';
+      const url =
+        '{protocol}://api.insomnia.rest/hello/{var}/my/{another-var}/friend/';
       const variables: OA3Variables = {
         'another-var': {
           default: 'old',
@@ -90,7 +105,7 @@ describe('variables', () => {
       };
 
       expect(resolveUrlVariables(url, variables)).toBe(
-        'http://api.insomnia.rest/hello/.*/my/old/friend/',
+        'http://api.insomnia.rest/hello/.*/my/old/friend/'
       );
     });
 
@@ -102,7 +117,9 @@ describe('variables', () => {
         },
       };
 
-      expect(resolveUrlVariables(partial, variables)).toBe('/hello/.*/my/old/friend');
+      expect(resolveUrlVariables(partial, variables)).toBe(
+        '/hello/.*/my/old/friend'
+      );
     });
   });
 

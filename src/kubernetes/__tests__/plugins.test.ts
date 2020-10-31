@@ -1,5 +1,3 @@
-// @flow
-
 import {
   flattenPluginDocuments,
   generateK8PluginConfig,
@@ -21,15 +19,18 @@ import {
   pluginDummy,
   pluginKeyAuth,
 } from './util/plugin-helpers';
+import { OpenAPIV3 } from 'openapi-types';
+import { PathPlugins, OperationPlugins } from '../../types/k8plugins';
+import { KubernetesPluginConfig } from '../../types/kubernetes-config';
 
 describe('plugins', () => {
   let _iterator = 0;
   const increment = () => _iterator++;
 
-  const blankOperation = { method: null, plugins: [] };
+  const blankOperation = { method: undefined, plugins: [] };
   const blankPath = { path: '', plugins: [], operations: [blankOperation] };
 
-  const spec: OpenApi3Spec = {
+  const spec: OpenAPIV3.Document = {
     openapi: '3.0',
     info: { version: '1.0', title: 'My API' },
     servers: [
@@ -96,7 +97,7 @@ describe('plugins', () => {
       expect(result.paths).toEqual([blankPath]);
     });
     it('should return expected result if plugins on global, server, path, and operation', () => {
-      const api: OpenApi3Spec = {
+      const api: OpenAPIV3.Document = {
         ...spec,
         ...pluginKeyAuth,
         servers: [
@@ -108,6 +109,7 @@ describe('plugins', () => {
         paths: {
           '/path': {
             ...pluginKeyAuth,
+            // @ts-ignore
             get: {
               ...pluginKeyAuth,
             },
@@ -132,7 +134,9 @@ describe('plugins', () => {
     it('should throw error if no servers on api', () => {
       const action = () => getPlugins({ ...spec, servers: [] });
 
-      expect(action).toThrowError('Failed to generate spec: no servers defined in spec.');
+      expect(action).toThrowError(
+        'Failed to generate spec: no servers defined in spec.'
+      );
     });
   });
 
@@ -142,7 +146,7 @@ describe('plugins', () => {
       expect(result).toHaveLength(0);
     });
     it('returns single plugin doc', () => {
-      const api: OpenApi3Spec = {
+      const api: OpenAPIV3.Document = {
         ...spec,
         ...pluginKeyAuth,
       };
@@ -151,7 +155,7 @@ describe('plugins', () => {
       expect(result).toEqual([keyAuthPluginDoc('g0')]);
     });
     it('returns multiple plugin docs', () => {
-      const api: OpenApi3Spec = {
+      const api: OpenAPIV3.Document = {
         ...spec,
         ...pluginKeyAuth,
         ...pluginDummy,
@@ -204,13 +208,13 @@ describe('plugins', () => {
         },
       };
 
-      // TODO: Cannot be typed as OpenApi3Spec because the security schemes types don't align to the data in components
-      const api: Object = {
+      // TODO: Cannot be typed as OpenAPIV3.Document because the security schemes types don't align to the data in components
+      const api = {
         ...spec,
         ...pluginDummy,
         ...pluginSecurity,
         components,
-      };
+      } as OpenAPIV3.Document;
 
       const result = getGlobalPlugins(api, increment);
 
@@ -234,10 +238,10 @@ describe('plugins', () => {
   });
 
   describe('getServerPlugins()', () => {
-    const server0: OA3Server = {
+    const server0: OpenAPIV3.ServerObject = {
       url: 'http://api-0.insomnia.rest',
     };
-    const server1: OA3Server = {
+    const server1: OpenAPIV3.ServerObject = {
       url: 'http://api-1.insomnia.rest',
     };
 
@@ -264,19 +268,22 @@ describe('plugins', () => {
 
       expect(result).toHaveLength(2);
       expect(result[0].plugins).toEqual([]);
-      expect(result[1].plugins).toEqual([keyAuthPluginDoc('s0'), dummyPluginDoc('s1')]);
+      expect(result[1].plugins).toEqual([
+        keyAuthPluginDoc('s0'),
+        dummyPluginDoc('s1'),
+      ]);
     });
   });
 
   describe('getPathPlugins()', () => {
     it('should return normalized result if no paths', () => {
-      const paths: OA3Paths = {};
+      const paths: OpenAPIV3.PathsObject = {};
       const result = getPathPlugins(paths, increment, spec);
 
       expect(result).toEqual([blankPath]);
     });
     it('should return normalized result if no path and operation plugins', () => {
-      const paths: OA3Paths = {
+      const paths: OpenAPIV3.PathsObject = {
         '/path': {
           description: 'path',
           get: {
@@ -290,8 +297,9 @@ describe('plugins', () => {
       expect(result).toEqual([blankPath]);
     });
     it('should handle plugins existing on path', () => {
-      const paths: OA3Paths = {
+      const paths: OpenAPIV3.PathsObject = {
         '/path-no-plugin': {},
+        // @ts-ignore
         '/path': {
           ...pluginDummy,
         },
@@ -311,8 +319,9 @@ describe('plugins', () => {
       expect(second.operations).toEqual([blankOperation]);
     });
     it('should handle plugins existing on operation and not on path', () => {
-      const paths: OA3Paths = {
+      const paths: OpenAPIV3.PathsObject = {
         '/path': {
+          // @ts-ignore
           get: {
             ...pluginDummy,
           },
@@ -336,9 +345,10 @@ describe('plugins', () => {
       ]);
     });
     it('should handle plugins existing on path and operation', () => {
-      const paths: OA3Paths = {
+      const paths: OpenAPIV3.PathsObject = {
         '/path-0': {
           ...pluginKeyAuth,
+          // @ts-ignore
           get: {
             ...pluginDummy,
           },
@@ -399,7 +409,10 @@ describe('plugins', () => {
 
       const put = result[1];
       expect(put.method).toBe(HttpMethod.put);
-      expect(put.plugins).toEqual([keyAuthPluginDoc('m0'), dummyPluginDoc('m1')]);
+      expect(put.plugins).toEqual([
+        keyAuthPluginDoc('m0'),
+        dummyPluginDoc('m1'),
+      ]);
 
       const post = result[2];
       expect(post.method).toBe(HttpMethod.post);
@@ -421,17 +434,20 @@ describe('plugins', () => {
 
         const first = result[0];
         expect(first.method).toBe(methodName);
-        expect(first.plugins).toEqual([keyAuthPluginDoc('m0'), dummyPluginDoc('m1')]);
-      },
+        expect(first.plugins).toEqual([
+          keyAuthPluginDoc('m0'),
+          dummyPluginDoc('m1'),
+        ]);
+      }
     );
     it('should return security plugin from operation', () => {
-      // TODO: Cannot be typed as OpenApi3Spec because the security schemes types don't align to the data in components
-      const api: Object = {
+      // TODO: Cannot be typed as OpenAPIV3.Document because the security schemes types don't align to the data in components
+      const api = {
         ...spec,
         components,
-      };
+      } as OpenAPIV3.Document;
 
-      const pathItem: OA3PathItem = {
+      const pathItem: OpenAPIV3.PathItemObject = {
         [HttpMethod.get]: {
           security: [
             {
@@ -472,7 +488,11 @@ describe('plugins', () => {
     });
     it('should attach config onto plugin if it exists and increment', () => {
       const incrementMock = jest.fn().mockReturnValue(0);
-      const result = generateK8PluginConfig({ ...spec, ...pluginKeyAuth }, 'greg', incrementMock);
+      const result = generateK8PluginConfig(
+        { ...spec, ...pluginKeyAuth },
+        'greg',
+        incrementMock
+      );
 
       expect(result).toEqual([keyAuthPluginDoc('greg0')]);
       expect(incrementMock).toHaveBeenCalledTimes(1);
@@ -567,7 +587,7 @@ describe('plugins', () => {
 
   describe('flattenPluginDocuments()', () => {
     it('should return a flat array with all plugin documents', () => {
-      const api: OpenApi3Spec = {
+      const api: OpenAPIV3.Document = {
         ...spec,
         ...pluginKeyAuth,
         servers: [
@@ -579,6 +599,7 @@ describe('plugins', () => {
         paths: {
           '/path': {
             ...pluginKeyAuth,
+            // @ts-ignore
             get: {
               ...pluginKeyAuth,
             },
@@ -600,10 +621,10 @@ describe('plugins', () => {
 
   describe('prioritizePlugins', () => {
     it('should return empty array if no plugins', () => {
-      const global = [];
-      const server = [];
-      const path = [];
-      const operation = [];
+      const global: KubernetesPluginConfig[] = [];
+      const server: KubernetesPluginConfig[] = [];
+      const path: KubernetesPluginConfig[] = [];
+      const operation: KubernetesPluginConfig[] = [];
 
       const result = prioritizePlugins(global, server, path, operation);
       expect(result).toHaveLength(0);
@@ -649,7 +670,7 @@ describe('plugins', () => {
       const global = [p1];
       const server = [p2];
       const path = [p3];
-      const operation = [];
+      const operation: KubernetesPluginConfig[] = [];
 
       const result = prioritizePlugins(global, server, path, operation);
       expect(result).toEqual([...path]);
@@ -662,8 +683,8 @@ describe('plugins', () => {
 
       const global = [p1];
       const server = [p2];
-      const path = [];
-      const operation = [];
+      const path: KubernetesPluginConfig[] = [];
+      const operation: KubernetesPluginConfig[] = [];
 
       const result = prioritizePlugins(global, server, path, operation);
       expect(result).toEqual([...server]);

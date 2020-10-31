@@ -1,13 +1,34 @@
-// @flow
-
-import { getMethodAnnotationName, getName, parseUrl } from '../common';
+import {
+  getMethodAnnotationName,
+  getName,
+  HttpMethodType,
+  parseUrl,
+} from '../common';
 import urlJoin from 'url-join';
-import { flattenPluginDocuments, getPlugins, prioritizePlugins } from './plugins';
+import {
+  flattenPluginDocuments,
+  getPlugins,
+  prioritizePlugins,
+} from './plugins';
 import { pathVariablesToWildcard, resolveUrlVariables } from './variables';
+import { OpenAPIV3 } from 'openapi-types';
+import {
+  K8sAnnotations,
+  K8sIngressRule,
+  K8sMetadata,
+  K8sPath,
+  KubernetesConfig,
+  KubernetesMethodConfig,
+  OA3DocumentKubernetesInfo,
+  OA3ServerKubernetesProperties,
+  TlsObject,
+} from '../types/kubernetes-config';
+import { KongForKubernetesResult } from '../types/output';
+import { IndexIncrement } from '../types/k8plugins';
 
 export function generateKongForKubernetesConfigFromSpec(
-  api: OpenApi3Spec,
-  tags: Array<string>,
+  api: OpenAPIV3.Document,
+  _tags: Array<string>
 ): KongForKubernetesResult {
   const specName = getSpecName(api);
 
@@ -15,9 +36,11 @@ export function generateKongForKubernetesConfigFromSpec(
   const plugins = getPlugins(api);
 
   // Initialize document collections
-  const ingressDocuments = [];
+  const ingressDocuments: KubernetesConfig[] = [];
 
-  const methodsThatNeedKongIngressDocuments: Set<HttpMethodType> = new Set<HttpMethodType>();
+  const methodsThatNeedKongIngressDocuments: Set<HttpMethodType> = new Set<
+    HttpMethodType
+  >();
   let _iterator = 0;
   const increment = (): number => _iterator++;
 
@@ -28,7 +51,12 @@ export function generateKongForKubernetesConfigFromSpec(
       // Iterate methods
       pp.operations.forEach(o => {
         // Prioritize plugins for doc
-        const pluginsForDoc = prioritizePlugins(plugins.global, sp.plugins, pp.plugins, o.plugins);
+        const pluginsForDoc = prioritizePlugins(
+          plugins.global,
+          sp.plugins,
+          pp.plugins,
+          o.plugins
+        );
 
         // Identify custom annotations
         const annotations: CustomAnnotations = {
@@ -42,7 +70,12 @@ export function generateKongForKubernetesConfigFromSpec(
         }
 
         // Create metadata
-        const metadata = generateMetadata(api, annotations, increment, specName);
+        const metadata = generateMetadata(
+          api,
+          annotations,
+          increment,
+          specName
+        );
 
         // Generate Kong ingress document for a server and path in the doc
         const doc: KubernetesConfig = {
@@ -50,7 +83,11 @@ export function generateKongForKubernetesConfigFromSpec(
           kind: 'Ingress',
           metadata,
           spec: {
-            rules: [generateRulesForServer(serverIndex, sp.server, specName, [pp.path])],
+            rules: [
+              generateRulesForServer(serverIndex, sp.server, specName, [
+                pp.path,
+              ]),
+            ],
           },
         };
 
@@ -60,21 +97,27 @@ export function generateKongForKubernetesConfigFromSpec(
   });
 
   const methodDocuments = Array.from(methodsThatNeedKongIngressDocuments).map(
-    generateK8sMethodDocuments,
+    generateK8sMethodDocuments
   );
   const pluginDocuments = flattenPluginDocuments(plugins);
 
-  const documents = [...methodDocuments, ...pluginDocuments, ...ingressDocuments];
+  const documents = [
+    ...methodDocuments,
+    ...pluginDocuments,
+    ...ingressDocuments,
+  ];
 
-  return ({
+  return {
     type: 'kong-for-kubernetes',
     label: 'Kong for Kubernetes',
     documents,
     warnings: [],
-  }: KongForKubernetesResult);
+  };
 }
 
-function generateK8sMethodDocuments(method: HttpMethodType): KubernetesMethodConfig {
+function generateK8sMethodDocuments(
+  method: HttpMethodType
+): KubernetesMethodConfig {
   return {
     apiVersion: 'configuration.konghq.com/v1',
     kind: 'KongIngress',
@@ -88,10 +131,10 @@ function generateK8sMethodDocuments(method: HttpMethodType): KubernetesMethodCon
 }
 
 function generateMetadata(
-  api: OpenApi3Spec,
+  api: OpenAPIV3.Document,
   customAnnotations: CustomAnnotations,
   increment: IndexIncrement,
-  specName: string,
+  specName: string
 ): K8sMetadata {
   return {
     name: `${specName}-${increment()}`,
@@ -100,17 +143,17 @@ function generateMetadata(
 }
 
 type CustomAnnotations = {
-  pluginNames: Array<string>,
-  overrideName?: string,
+  pluginNames: Array<string>;
+  overrideName?: string;
 };
 
-export function getSpecName(api: OpenApi3Spec): string {
+export function getSpecName(api: OpenAPIV3.Document): string {
   return getName(api, 'openapi', { lower: true, replacement: '-' }, true);
 }
 
 export function generateMetadataAnnotations(
-  api: OpenApi3Spec,
-  { pluginNames, overrideName }: CustomAnnotations,
+  api: OA3DocumentKubernetesInfo,
+  { pluginNames, overrideName }: CustomAnnotations
 ): K8sAnnotations {
   // This annotation is required by kong-ingress-controller
   // https://github.com/Kong/kubernetes-ingress-controller/blob/main/docs/references/annotations.md#kubernetesioingressclass
@@ -120,7 +163,7 @@ export function generateMetadataAnnotations(
 
   // Only continue if metadata annotations, or plugins, or overrides exist
   if (metadata?.annotations || pluginNames.length || overrideName) {
-    const customAnnotations = {};
+    const customAnnotations: any = {};
 
     if (pluginNames.length) {
       customAnnotations['konghq.com/plugins'] = pluginNames.join(', ');
@@ -139,9 +182,9 @@ export function generateMetadataAnnotations(
 
 export function generateRulesForServer(
   index: number,
-  server: OA3Server,
+  server: OA3ServerKubernetesProperties,
   specName: string,
-  paths?: Array<string>,
+  paths?: Array<string>
 ): K8sIngressRule {
   // Resolve serverUrl variables and update the source object so it only needs to be done once per server loop.
   server.url = resolveUrlVariables(server.url, server.variables);
@@ -175,7 +218,11 @@ export function generateRulesForServer(
   };
 }
 
-export function generateServiceName(server: OA3Server, specName: string, index: number): string {
+export function generateServiceName(
+  server: OA3ServerKubernetesProperties,
+  specName: string,
+  index: number
+): string {
   // x-kubernetes-backend.serviceName
   const serviceName = server['x-kubernetes-backend']?.serviceName;
   if (serviceName) {
@@ -192,11 +239,15 @@ export function generateServiceName(server: OA3Server, specName: string, index: 
   return `${specName}-service-${index}`;
 }
 
-export function generateTlsConfig(server: OA3Server): Object | null {
+export function generateTlsConfig(
+  server: OA3ServerKubernetesProperties
+): TlsObject | null {
   return server['x-kubernetes-tls'] || null;
 }
 
-export function generateServicePort(server: OA3Server): number {
+export function generateServicePort(
+  server: OA3ServerKubernetesProperties
+): number {
   // x-kubernetes-backend.servicePort
   const backend = server['x-kubernetes-backend'];
   if (backend && typeof backend.servicePort === 'number') {
@@ -219,15 +270,20 @@ export function generateServicePort(server: OA3Server): number {
 }
 
 export function generateServicePath(
-  serverBasePath: string,
-  specificPath: string = '',
+  serverBasePath: string | null,
+  specificPath: string = ''
 ): string | typeof undefined {
-  const shouldExtractPath = specificPath || (serverBasePath && serverBasePath !== '/');
-  if (!shouldExtractPath) {
+  const shouldExtractPath =
+    specificPath || (serverBasePath && serverBasePath !== '/');
+  if (!shouldExtractPath || serverBasePath == null) {
     return undefined;
   }
 
-  const fullPath = urlJoin(serverBasePath, specificPath, specificPath ? '' : '.*');
+  const fullPath = urlJoin(
+    serverBasePath,
+    specificPath,
+    specificPath ? '' : '.*'
+  );
   const pathname = pathVariablesToWildcard(fullPath);
 
   return pathname;

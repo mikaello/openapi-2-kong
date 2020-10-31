@@ -2,14 +2,19 @@ import { generate, generateFromString, parseSpec } from '../index';
 import YAML from 'yaml';
 import path from 'path';
 import fs from 'fs';
+import { DeclarativeConfigResult } from '../types/output';
 
 describe('index', () => {
   describe('generate()', () => {
     it('generates DC from file', async () => {
       const p = path.join(__dirname, '../__fixtures__/uspto.yaml');
       const {
+        // @ts-ignore
         documents: [dc],
-      } = await generate(p, 'kong-declarative-config');
+      } = (await generate(
+        p,
+        'kong-declarative-config'
+      )) as DeclarativeConfigResult;
       expect(dc._format_version).toBe('1.1');
       expect(dc.services.length).toBe(1);
       expect(dc.upstreams.length).toBe(1);
@@ -18,20 +23,35 @@ describe('index', () => {
     it('generates DC from file with extra tags', async () => {
       const p = path.join(__dirname, '../__fixtures__/uspto.yaml');
       const {
+        // @ts-ignore
         documents: [dc],
-      } = await generate(p, 'kong-declarative-config', ['MyTag']);
+      } = (await generate(p, 'kong-declarative-config', [
+        'MyTag',
+      ])) as DeclarativeConfigResult;
+
       expect(dc._format_version).toBe('1.1');
       expect(dc.services.length).toBe(1);
-      expect(dc.services[0].tags).toEqual(['OAS3_import', 'OAS3file_uspto.yaml', 'MyTag']);
+      expect(dc.services[0].tags).toEqual([
+        'OAS3_import',
+        'OAS3file_uspto.yaml',
+        'MyTag',
+      ]);
     });
   });
 
   describe('generateFromString()', () => {
     it('generates DC from string', async () => {
-      const s = fs.readFileSync(path.join(__dirname, '../__fixtures__/uspto.yaml'), 'utf8');
+      const s = fs.readFileSync(
+        path.join(__dirname, '../__fixtures__/uspto.yaml'),
+        'utf8'
+      );
       const {
+        // @ts-ignore
         documents: [dc],
-      } = await generateFromString(s, 'kong-declarative-config');
+      } = (await generateFromString(
+        s,
+        'kong-declarative-config'
+      )) as DeclarativeConfigResult;
       expect(dc._format_version).toBe('1.1');
     });
   });
@@ -39,11 +59,18 @@ describe('index', () => {
   describe('generateFromSpec()', () => {
     it('generates DC from spec', async () => {
       const s = YAML.parse(
-        fs.readFileSync(path.join(__dirname, '../__fixtures__/uspto.yaml'), 'utf8'),
+        fs.readFileSync(
+          path.join(__dirname, '../__fixtures__/uspto.yaml'),
+          'utf8'
+        )
       );
       const {
+        // @ts-ignore
         documents: [dc],
-      } = await generateFromString(s, 'kong-declarative-config');
+      } = (await generateFromString(
+        s,
+        'kong-declarative-config'
+      )) as DeclarativeConfigResult;
       expect(dc._format_version).toBe('1.1');
     });
   });
@@ -72,7 +99,7 @@ describe('index', () => {
     const specResolved = {
       openapi: '3.0.0',
       components: spec.components,
-      info: {},
+      info: { title: '', version: '' },
       paths: {
         '/': {
           post: {

@@ -1,9 +1,10 @@
+import { OpenAPIV3 } from 'openapi-types';
 import { generateSecurityPlugin } from '../security-plugins';
 
 describe('security-plugins', () => {
   describe('generateSecurityPlugin()', () => {
     it('generates apikey plugin', async () => {
-      const scheme = {
+      const scheme: OpenAPIV3.SecuritySchemeObject = {
         type: 'apiKey',
         in: 'header',
         name: 'x-api-key',
@@ -18,11 +19,11 @@ describe('security-plugins', () => {
       });
     });
     it('generates apikey plugin with funny casing', async () => {
-      const scheme = {
+      const scheme = ({
         type: 'ApIKeY',
         in: 'header',
         name: 'x-api-key',
-      };
+      } as unknown) as OpenAPIV3.SecuritySchemeObject;
 
       const result = generateSecurityPlugin(scheme);
       expect(result).toEqual({

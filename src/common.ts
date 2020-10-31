@@ -1,16 +1,20 @@
-// @flow
 import url from 'url';
 import slugify from 'slugify';
+import { OpenAPIV3 } from 'openapi-types';
 
-export function getServers(obj: OpenApi3Spec | OA3PathItem): Array<OA3Server> {
+export function getServers(
+  obj: OpenAPIV3.Document | OpenAPIV3.PathItemObject
+): Array<OpenAPIV3.ServerObject> {
   return obj.servers || [];
 }
 
-export function getPaths(obj: OpenApi3Spec): OA3Paths {
+export function getPaths(obj: OpenAPIV3.Document): OpenAPIV3.PathsObject {
   return obj.paths || {};
 }
 
-export function getAllServers(api: OpenApi3Spec): Array<OA3Server> {
+export function getAllServers(
+  api: OpenAPIV3.Document
+): Array<OpenAPIV3.ServerObject> {
   const servers = getServers(api);
 
   for (const p of Object.keys(api.paths)) {
@@ -23,28 +27,30 @@ export function getAllServers(api: OpenApi3Spec): Array<OA3Server> {
 }
 
 export function getSecurity(
-  obj: OpenApi3Spec | OA3Operation | null,
-): Array<OA3SecurityRequirement> {
+  obj: OpenAPIV3.Document | OpenAPIV3.OperationObject | null
+): Array<OpenAPIV3.SecurityRequirementObject> {
   return obj?.security || [];
 }
 
 type SlugifyOptions = {
-  replacement?: string,
-  lower?: boolean,
+  replacement?: string;
+  lower?: boolean;
 };
 
 export function getName(
-  api: OpenApi3Spec,
+  api: OpenAPIV3.Document,
   defaultValue?: string,
   slugifyOptions?: SlugifyOptions,
-  isKubernetes?: boolean,
+  isKubernetes?: boolean
 ): string {
   let rawName = '';
 
   // Get $.info.x-kubernetes-ingress-metadata.name
+  // @ts-ignore
   rawName = isKubernetes && api.info?.['x-kubernetes-ingress-metadata']?.name;
 
   // Get $.x-kong-name
+  // @ts-ignore
   rawName = rawName || api['x-kong-name'];
 
   // Get $.info.title
@@ -58,7 +64,10 @@ export function getName(
   return generateSlug(name, slugifyOptions);
 }
 
-export function generateSlug(str: string, options: SlugifyOptions = {}): string {
+export function generateSlug(
+  str: string,
+  options: SlugifyOptions = {}
+): string {
   options.replacement = options.replacement || '_';
   options.lower = options.lower || false;
   return slugify(str, options);
@@ -81,7 +90,7 @@ export function getPluginNameFromKey(key: string): string {
 }
 
 export function isPluginKey(key: string): boolean {
-  return key.indexOf('x-kong-plugin-') === 0;
+  return key.startsWith('x-kong-plugin-');
 }
 
 export const HttpMethod = {
@@ -94,6 +103,7 @@ export const HttpMethod = {
   patch: 'PATCH',
   trace: 'TRACE',
 };
+export type HttpMethodType = typeof HttpMethod[keyof typeof HttpMethod];
 
 export function isHttpMethodKey(key: string): boolean {
   const uppercaseKey = key.toUpperCase();
@@ -104,16 +114,8 @@ export function getMethodAnnotationName(method: HttpMethodType): string {
   return `${method}-method`.toLowerCase();
 }
 
-export function parseUrl(
-  urlStr: string,
-): {|
-  host: string,
-  hostname: string,
-  port: string,
-  protocol: string,
-  pathname: string,
-|} {
-  const parsed: Object = url.parse(urlStr);
+export function parseUrl(urlStr: string) {
+  const parsed = url.parse(urlStr);
 
   if (!parsed.port && parsed.protocol === 'https:') {
     parsed.port = '443';
@@ -127,13 +129,13 @@ export function parseUrl(
   return parsed;
 }
 
-export function fillServerVariables(server: OA3Server): string {
+export function fillServerVariables(server: OpenAPIV3.ServerObject): string {
   let finalUrl = server.url;
 
   const variables = server.variables || {};
 
-  for (const name of Object.keys(variables)) {
-    const defaultValue = variables[name].default;
+  for (const [name, variable] of Object.entries(variables)) {
+    const defaultValue = variable.default;
     if (!defaultValue) {
       throw new Error(`Server variable "${name}" missing default value`);
     }

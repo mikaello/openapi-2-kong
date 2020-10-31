@@ -1,30 +1,40 @@
 // @flow
 
+import { OpenAPIV3 } from 'openapi-types';
 import { getPluginNameFromKey, isPluginKey } from '../common';
+import { DCPlugin } from '../types/declarative-config';
 
 export function isRequestValidatorPluginKey(key: string): boolean {
   return key.match(/-request-validator$/) != null;
 }
 
-type GeneratorFn = (key: string, value: Object, iterable: Object | Array<Object>) => DCPlugin;
+type GeneratorFn = (
+  key: string,
+  value: Object,
+  iterable: Object | Array<Object>
+) => DCPlugin;
 
-export function generatePlugins(item: Object, generator: GeneratorFn): Array<DCPlugin> {
+export function generatePlugins(
+  item: Object,
+  generator: GeneratorFn
+): Array<DCPlugin> {
   const plugins: Array<DCPlugin> = [];
 
-  for (const key of Object.keys(item)) {
+  for (const [key, value] of Object.entries(item)) {
     if (!isPluginKey(key)) {
       continue;
     }
 
-    plugins.push(generator(key, item[key], item));
+    plugins.push(generator(key, value, item));
   }
 
   return plugins;
 }
 
-export function generatePlugin(key: string, value: Object): DCPlugin {
+export function generatePlugin(key: string, value: any): DCPlugin {
+  //const value = operation[key];
   const plugin: DCPlugin = {
-    name: value.name || getPluginNameFromKey(key),
+    name: value?.name || getPluginNameFromKey(key),
   };
 
   if (value.config) {
@@ -34,41 +44,50 @@ export function generatePlugin(key: string, value: Object): DCPlugin {
   return plugin;
 }
 
-export function generateRequestValidatorPlugin(obj: Object, operation: OA3Operation): DCPlugin {
-  const config: { [string]: Object } = {
+export function generateRequestValidatorPlugin(
+  _value: any,
+  operation: OpenAPIV3.OperationObject
+): DCPlugin {
+  const config: { [key: string]: any } = {
     version: 'draft4', // Fixed version
   };
 
   config.parameter_schema = [];
 
   if (operation.parameters) {
-    for (const p of operation.parameters) {
-      if (!(p: Object).schema) {
-        throw new Error("Parameter using 'content' type validation is not supported");
+    for (const parameter of operation.parameters) {
+      const p = parameter as OpenAPIV3.ParameterObject;
+
+      if (!p.schema) {
+        throw new Error(
+          "Parameter using 'content' type validation is not supported"
+        );
       }
       config.parameter_schema.push({
-        in: (p: Object).in,
-        explode: !!(p: Object).explode,
-        required: !!(p: Object).required,
-        name: (p: Object).name,
-        schema: JSON.stringify((p: Object).schema),
+        in: p.in,
+        explode: !!p.explode,
+        required: !!p.required,
+        name: p.name,
+        schema: JSON.stringify(p.schema),
         style: 'simple',
       });
     }
   }
 
   if (operation.requestBody) {
-    const content = (operation.requestBody: Object).content;
+    const content = (operation.requestBody as OpenAPIV3.RequestBodyObject)
+      .content;
     if (!content) {
       throw new Error('content property is missing for request-validator!');
     }
 
     let bodySchema;
-    for (const mediatype of Object.keys(content)) {
+    for (const [mediatype, item] of Object.entries(content)) {
       if (mediatype !== 'application/json') {
-        throw new Error(`Body validation supports only 'application/json', not ${mediatype}`);
+        throw new Error(
+          `Body validation supports only 'application/json', not ${mediatype}`
+        );
       }
-      const item = content[mediatype];
       bodySchema = JSON.stringify(item.schema);
     }
 
@@ -84,10 +103,13 @@ export function generateRequestValidatorPlugin(obj: Object, operation: OA3Operat
   };
 }
 
-export function generateServerPlugins(server: OA3Server): Array<DCPlugin> {
+export function generateServerPlugins(
+  server: OpenAPIV3.ServerObject
+): Array<DCPlugin> {
   const plugins: Array<DCPlugin> = [];
 
-  for (const key of Object.keys(server)) {
+  const serverKeys = Object.keys(server) as Array<keyof typeof server>;
+  for (const key of serverKeys) {
     if (!isPluginKey(key)) {
       continue;
     }
@@ -98,10 +120,13 @@ export function generateServerPlugins(server: OA3Server): Array<DCPlugin> {
   return plugins;
 }
 
-export function generateOperationPlugins(operation: OA3Operation): Array<DCPlugin> {
+export function generateOperationPlugins(
+  operation: OpenAPIV3.OperationObject
+): Array<DCPlugin> {
   const plugins: Array<DCPlugin> = [];
 
-  for (const key of Object.keys(operation)) {
+  const operationKeys = Object.keys(operation) as Array<keyof typeof operation>;
+  for (const key of operationKeys) {
     if (!isPluginKey(key)) {
       continue;
     }

@@ -5,13 +5,19 @@ import {
   generateSlug,
   getAllServers,
   getName,
+  HttpMethod,
   pathVariablesToRegex,
 } from '../common';
 
 import { generateSecurityPlugins } from './security-plugins';
 import { generateOperationPlugins, generateServerPlugins } from './plugins';
+import { OpenAPIV3 } from 'openapi-types';
+import { DCService, DCRoute } from '../types/declarative-config';
 
-export function generateServices(api: OpenApi3Spec, tags: Array<string>): Array<DCService> {
+export function generateServices(
+  api: OpenAPIV3.Document,
+  tags: Array<string>
+): Array<DCService> {
   const servers = getAllServers(api);
 
   if (servers.length === 0) {
@@ -24,9 +30,9 @@ export function generateServices(api: OpenApi3Spec, tags: Array<string>): Array<
 }
 
 export function generateService(
-  server: OA3Server,
-  api: OpenApi3Spec,
-  tags: Array<string>,
+  server: OpenAPIV3.ServerObject,
+  api: OpenAPIV3.Document,
+  tags: Array<string>
 ): DCService {
   const serverUrl = fillServerVariables(server);
   const name = getName(api);
@@ -38,24 +44,11 @@ export function generateService(
     tags,
   };
 
-  for (const routePath of Object.keys(api.paths)) {
-    const pathItem: OA3PathItem = api.paths[routePath];
-
-    for (const method of Object.keys(pathItem)) {
-      if (
-        method !== 'get' &&
-        method !== 'put' &&
-        method !== 'post' &&
-        method !== 'delete' &&
-        method !== 'options' &&
-        method !== 'head' &&
-        method !== 'patch' &&
-        method !== 'trace'
-      ) {
+  for (const [routePath, pathItem] of Object.entries(api.paths)) {
+    for (const [method, operation] of Object.entries(pathItem)) {
+      if (!Object.keys(HttpMethod).includes(method)) {
         continue;
       }
-
-      const operation: ?OA3Operation = pathItem[method];
 
       // This check is here to make Flow happy
       if (!operation) {
@@ -90,16 +83,16 @@ export function generateService(
 }
 
 export function generateRouteName(
-  api: OpenApi3Spec,
-  pathItem: OA3PathItem,
+  api: OpenAPIV3.Document,
+  pathItem: OpenAPIV3.PathItemObject & { 'x-kong-name'?: string },
   method: string,
-  numRoutes: number,
+  numRoutes: number
 ): string {
   const n = numRoutes;
   const name = getName(api);
 
-  if (typeof (pathItem: Object)['x-kong-name'] === 'string') {
-    const pathSlug = generateSlug((pathItem: Object)['x-kong-name']);
+  if (typeof pathItem['x-kong-name'] === 'string') {
+    const pathSlug = generateSlug(pathItem['x-kong-name']);
     return `${name}-${pathSlug}-${method}`;
   }
 

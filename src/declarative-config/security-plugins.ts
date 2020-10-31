@@ -1,10 +1,12 @@
 // @flow
 
+import { OpenAPIV3 } from 'openapi-types';
 import { getSecurity } from '../common';
+import { DCPlugin } from '../types/declarative-config';
 
 export function generateSecurityPlugins(
-  op: OA3Operation | null,
-  api: OpenApi3Spec,
+  op: OpenAPIV3.OperationObject | undefined | null,
+  api: OpenAPIV3.Document
 ): Array<DCPlugin> {
   const plugins = [];
   const components = api.components || {};
@@ -13,7 +15,8 @@ export function generateSecurityPlugins(
   const security = op ? getSecurity(op) : getSecurity(api);
   for (const securityItem of security || []) {
     for (const name of Object.keys(securityItem)) {
-      const scheme: OA3SecurityScheme = securitySchemes[name] || {};
+      const scheme =
+        (securitySchemes[name] as OpenAPIV3.SecuritySchemeObject) || {};
       const args = securityItem[name];
 
       const p = generateSecurityPlugin(scheme, args);
@@ -27,12 +30,18 @@ export function generateSecurityPlugins(
   return plugins;
 }
 
-export function generateApiKeySecurityPlugin(scheme: OA3SecuritySchemeApiKey): DCPlugin {
+export function generateApiKeySecurityPlugin(
+  scheme: OpenAPIV3.ApiKeySecurityScheme
+): DCPlugin {
   if (!['query', 'header', 'cookie'].includes(scheme.in)) {
-    throw new Error(`a ${scheme.type} object expects valid "in" property. Got ${scheme.in}`);
+    throw new Error(
+      `a ${scheme.type} object expects valid "in" property. Got ${scheme.in}`
+    );
   }
   if (!scheme.name) {
-    throw new Error(`a ${scheme.type} object expects valid "name" property. Got ${scheme.name}`);
+    throw new Error(
+      `a ${scheme.type} object expects valid "name" property. Got ${scheme.name}`
+    );
   }
 
   return {
@@ -41,7 +50,9 @@ export function generateApiKeySecurityPlugin(scheme: OA3SecuritySchemeApiKey): D
   };
 }
 
-export function generateHttpSecurityPlugin(scheme: OA3SecuritySchemeHttp): DCPlugin {
+export function generateHttpSecurityPlugin(
+  scheme: OpenAPIV3.HttpSecurityScheme
+): DCPlugin {
   if ((scheme.scheme || '').toLowerCase() !== 'basic') {
     throw new Error(`Only "basic" http scheme supported. got ${scheme.scheme}`);
   }
@@ -50,11 +61,13 @@ export function generateHttpSecurityPlugin(scheme: OA3SecuritySchemeHttp): DCPlu
 }
 
 export function generateOpenIdConnectSecurityPlugin(
-  scheme: OA3SecuritySchemeOpenIdConnect,
-  args: Array<any>,
+  scheme: OpenAPIV3.OpenIdSecurityScheme,
+  args: Array<any>
 ): DCPlugin {
   if (!scheme.openIdConnectUrl) {
-    throw new Error(`invalid "openIdConnectUrl" property. Got ${scheme.openIdConnectUrl}`);
+    throw new Error(
+      `invalid "openIdConnectUrl" property. Got ${scheme.openIdConnectUrl}`
+    );
   }
 
   return {
@@ -67,8 +80,8 @@ export function generateOpenIdConnectSecurityPlugin(
 }
 
 export function generateOAuth2SecurityPlugin(
-  scheme: OA3SecuritySchemeOAuth2,
-  args: ?Array<any>,
+  _scheme: OpenAPIV3.OAuth2SecurityScheme,
+  _args?: Array<any>
 ): DCPlugin {
   return {
     config: {
@@ -79,8 +92,8 @@ export function generateOAuth2SecurityPlugin(
 }
 
 export function generateSecurityPlugin(
-  scheme: OA3SecurityScheme,
-  args: Array<any>,
+  scheme: OpenAPIV3.SecuritySchemeObject,
+  args: Array<any> = []
 ): DCPlugin | null {
   let plugin: DCPlugin | null = null;
 
@@ -91,24 +104,33 @@ export function generateSecurityPlugin(
 
   // Generate base plugin
   if (type === 'apikey') {
-    plugin = generateApiKeySecurityPlugin((scheme: any));
+    plugin = generateApiKeySecurityPlugin(
+      scheme as OpenAPIV3.ApiKeySecurityScheme
+    );
   } else if (type === 'http') {
-    plugin = generateHttpSecurityPlugin((scheme: any));
+    plugin = generateHttpSecurityPlugin(scheme as OpenAPIV3.HttpSecurityScheme);
   } else if (type === 'openidconnect') {
-    plugin = generateOpenIdConnectSecurityPlugin((scheme: any), args);
+    plugin = generateOpenIdConnectSecurityPlugin(
+      scheme as OpenAPIV3.OpenIdSecurityScheme,
+      args
+    );
   } else if (type === 'oauth2') {
-    plugin = generateOAuth2SecurityPlugin((scheme: any));
+    plugin = generateOAuth2SecurityPlugin(
+      scheme as OpenAPIV3.OAuth2SecurityScheme,
+      args
+    );
   } else {
     return null;
   }
 
   // Add additional plugin configuration from x-kong-* properties
-  for (const key of Object.keys((scheme: Object))) {
+  const schemeKeys = Object.keys(scheme) as Array<keyof typeof scheme>;
+  for (const key of schemeKeys) {
     if (key.indexOf('x-kong-security-') !== 0) {
       continue;
     }
 
-    const kongSecurity = scheme[key];
+    const kongSecurity: any = scheme[key];
 
     if (kongSecurity.config) {
       plugin.config = kongSecurity.config;

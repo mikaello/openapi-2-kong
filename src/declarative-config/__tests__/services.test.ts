@@ -1,11 +1,12 @@
 // @flow
 import { generateServices } from '../services';
 import { parseSpec } from '../../index';
+import { OpenAPIV3 } from 'openapi-types';
 
 describe('services', () => {
   describe('generateServices()', () => {
     it('generates generic service with paths', async () => {
-      const api: OpenApi3Spec = await parseSpec({
+      const api: OpenAPIV3.Document = await parseSpec({
         openapi: '3.0',
         info: { version: '1.0', title: 'My API' },
         servers: [{ url: 'https://server1.com/path' }],
@@ -68,7 +69,7 @@ describe('services', () => {
     });
 
     it('fails with no servers', async () => {
-      const api: OpenApi3Spec = await parseSpec({
+      const api: OpenAPIV3.Document = await parseSpec({
         openapi: '3.0',
         info: { version: '1.0', title: 'My API' },
         paths: {
@@ -85,7 +86,7 @@ describe('services', () => {
     });
 
     it('replaces variables', async () => {
-      const api: OpenApi3Spec = await parseSpec({
+      const api: OpenAPIV3.Document = await parseSpec({
         openapi: '3.0',
         info: { version: '1.0', title: 'My API' },
         servers: [

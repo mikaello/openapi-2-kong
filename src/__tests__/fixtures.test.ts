@@ -1,6 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import { generate } from '../index';
+import { DCRoute, DeclarativeConfig } from '../types/declarative-config';
 
 describe('fixtures', () => {
   const root = path.join(__dirname, '../__fixtures__/');
@@ -17,17 +18,18 @@ describe('fixtures', () => {
 
     it(`converts ${name}`, async () => {
       const result = await generate(inputPath, 'kong-declarative-config');
-      expect(result.documents.length).toBe(1);
+      const documents = result.documents as DeclarativeConfig[];
+      expect(documents.length).toBe(1);
 
-      const document = result.documents[0];
-      const expectedObj = JSON.parse(expected);
+      const document = documents[0];
+      const expectedObj = JSON.parse(expected) as DeclarativeConfig;
 
       // Make matching friendlier
-      for (const service of expectedObj.services || []) {
+      for (const service of expectedObj.services ?? []) {
         service.routes = _sortRoutes(service.routes);
       }
 
-      for (const service of document.services || []) {
+      for (const service of document.services) {
         service.routes = _sortRoutes(service.routes);
       }
 
@@ -36,7 +38,7 @@ describe('fixtures', () => {
   }
 });
 
-function _sortRoutes(routes) {
+function _sortRoutes(routes: DCRoute[]) {
   return routes.sort((a, b) => {
     let aCompare = a.paths[0];
     let bCompare = b.paths[0];

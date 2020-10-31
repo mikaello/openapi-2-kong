@@ -1,33 +1,64 @@
 {
-  "name": "openapi-2-kong",
+  "name": "@mikaello/openapi-2-kong",
   "version": "2.2.24",
+  "license": "MIT",
   "main": "dist/index.js",
+  "typings": "dist/index.d.ts",
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com/"
+  },
+  "files": [
+    "dist"
+  ],
+  "engines": {
+    "node": ">=10"
+  },
   "scripts": {
-    "typecheck": "flow check",
-    "test": "jest",
-    "build": "webpack --config webpack.config.js --display errors-only",
-    "bootstrap": "npm run build",
-    "prepublish": "npm run build"
+    "start": "tsdx watch",
+    "build": "tsdx build",
+    "test": "tsdx test",
+    "lint": "tsdx lint",
+    "prepare": "tsdx build",
+    "size": "size-limit",
+    "analyze": "size-limit --why"
   },
-  "jest": {
-    "testMatch": [
-      "**/__tests__/**/*.test.js"
-    ],
-    "verbose": false,
-    "resetMocks": true,
-    "resetModules": true
+  "husky": {
+    "hooks": {
+      "pre-commit": "tsdx lint"
+    }
   },
+  "prettier": {
+    "printWidth": 80,
+    "semi": true,
+    "singleQuote": true,
+    "trailingComma": "es5"
+  },
+  "module": "dist/openapi-2-kong.esm.js",
+  "size-limit": [
+    {
+      "path": "dist/openapi-2-kong.cjs.production.min.js",
+      "limit": "10 KB"
+    },
+    {
+      "path": "dist/openapi-2-kong.esm.js",
+      "limit": "10 KB"
+    }
+  ],
+  "peerDependencies": {},
   "dependencies": {
-    "slugify": "^1.3.6",
-    "swagger-parser": "^8.0.3",
+    "@apidevtools/swagger-parser": "^10.0.2",
+    "slugify": "^1.4.5",
     "url-join": "^4.0.1",
-    "yaml": "^1.7.2"
+    "yaml": "^1.10.0"
   },
   "devDependencies": {
-    "@babel/core": "^7.9.0",
-    "@babel/plugin-proposal-optional-chaining": "^7.9.0",
-    "webpack": "^4.42.1",
-    "webpack-cli": "^3.3.11"
-  },
-  "gitHead": "d91e6735a76295166545a42c170328da4ab70dd3"
+    "@size-limit/preset-small-lib": "^4.7.0",
+    "@types/url-join": "^4.0.0",
+    "husky": "^4.3.0",
+    "openapi-types": "^7.0.1",
+    "size-limit": "^4.7.0",
+    "tsdx": "^0.14.1",
+    "tslib": "^2.0.3",
+    "typescript": "^4.0.5"
+  }
 }

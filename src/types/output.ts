@@ -1,31 +1,42 @@
-// @flow
+import { DeclarativeConfig } from './declarative-config';
+import {
+  KubernetesConfig,
+  KubernetesPluginConfig,
+  KubernetesMethodConfig,
+} from './kubernetes-config';
 
-declare type ConversionResultType = 'kong-declarative-config' | 'kong-for-kubernetes';
+export declare type ConversionResultType =
+  | 'kong-declarative-config'
+  | 'kong-for-kubernetes';
 
-declare type DeclarativeConfigResult = {
-  type: 'kong-declarative-config',
-  label: string,
-  documents: DeclarativeConfig,
+export declare type DeclarativeConfigResult = {
+  type: 'kong-declarative-config';
+  label: string;
+  documents: Array<DeclarativeConfig>;
   warnings: Array<{
-    severity: number,
-    message: string,
+    severity: number;
+    message: string;
     range: {
       /* TODO */
-    },
-  }>,
+    };
+  }>;
 };
 
-declare type KongForKubernetesResult = {
-  type: 'kong-for-kubernetes',
-  label: string,
-  documents: Array<KubernetesConfig | KubernetesPluginConfig | KubernetesMethodConfig>,
+export declare type KongForKubernetesResult = {
+  type: 'kong-for-kubernetes';
+  label: string;
+  documents: Array<
+    KubernetesConfig | KubernetesPluginConfig | KubernetesMethodConfig
+  >;
   warnings: Array<{
-    severity: number,
-    message: string,
+    severity: number;
+    message: string;
     range: {
       /* TODO */
-    },
-  }>,
+    };
+  }>;
 };
 
-declare type ConversionResult = DeclarativeConfigResult | KongForKubernetesResult;
+export declare type ConversionResult =
+  | DeclarativeConfigResult
+  | KongForKubernetesResult;
